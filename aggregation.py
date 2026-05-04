@@ -1,6 +1,6 @@
 """
 aggregation.py — Token aggregation strategy and feature extraction
-               (student-implemented).
+                 (student-implemented).
 
 Converts per-token, per-layer hidden states from the extraction loop in
 ``solution.py`` into flat feature vectors for the probe classifier.
@@ -38,24 +38,21 @@ def aggregate(
         ``(k * hidden_dim,)`` if multiple layers are concatenated.
 
     Student task:
-        Replace or extend the skeleton below with alternative layer selection,
-        token pooling (mean, max, weighted), or multi-layer fusion strategies.
+        Replace or extend the skeleton below with:
+            alternative layer selection,
+            token pooling (mean, max, weighted), 
+            multi-layer fusion strategies.
     """
-    # ------------------------------------------------------------------
-    # STUDENT: Replace or extend the aggregation below.
-    # ------------------------------------------------------------------
 
-    # Default: last real token of the final transformer layer.
-    layer = hidden_states[-1]          # (seq_len, hidden_dim)
+    best_layers = [17, 21, 22, 23, 24]
 
-    # Find the index of the last real (non-padding) token.
-    real_positions = attention_mask.nonzero(as_tuple=False)  # (n_real, 1)
-    last_pos = int(real_positions[-1].item())                 # scalar index
+    real_pos = attention_mask.nonzero(as_tuple=False)[-1].item()
+    hs = hidden_states[best_layers, real_pos, :] # (5, hidden_dim)
+    
+    layers = torch.nn.functional.normalize(hs, dim=0).flatten()
+    m, _ = torch.max(hs, dim=0)
 
-    feature = layer[last_pos]          # (hidden_dim,)
-
-    return feature
-    # ------------------------------------------------------------------
+    return torch.cat([layers, m])
 
 
 def extract_geometric_features(
@@ -77,16 +74,34 @@ def extract_geometric_features(
         must be the same for every sample.
 
     Student task:
-        Replace the stub below.  Possible features: layer-wise activation
-        norms, inter-layer cosine similarity (representation drift), or
-        sequence length.
+        Replace the stub below.  
+        Possible features: 
+            layer-wise activation norms, 
+            inter-layer cosine similarity (representation drift),
+            sequence length.
     """
-    # ------------------------------------------------------------------
-    # STUDENT: Replace or extend the geometric feature extraction below.
-    # ------------------------------------------------------------------
 
-    # Placeholder: returns an empty tensor (no geometric features).
-    return torch.zeros(0)
+    mask = attention_mask.bool()
+    hs = hidden_states[:, mask, :]  # (n_layers, n_tokens, hidden_dim)
+
+    features = []
+
+    # 1) last layer norm
+    norms = hs[-1].norm(dim=-1)     # (n_tokens,)
+    features.append(norms.mean())
+    features.append(norms.std())
+
+    # 2) cos similarity beetween two last layers
+    cos = torch.nn.functional.cosine_similarity(hs[-1], hs[-2], dim=-1)
+    features.append(cos.mean())
+    features.append(cos.std())
+
+    # 1) diff beetween two last layers
+    diff = hs[-1].norm(dim=-1) - hs[-2].norm(dim=-1)
+    features.append(diff.mean())
+    features.append(diff.std())
+
+    return torch.stack(features)
 
 
 def aggregation_and_feature_extraction(

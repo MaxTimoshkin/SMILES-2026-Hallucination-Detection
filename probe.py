@@ -31,9 +31,6 @@ class HallucinationProbe(nn.Module):
         self._scaler = StandardScaler()
         self._threshold: float = 0.5  # tuned by fit_hyperparameters()
 
-    # ------------------------------------------------------------------
-    # STUDENT: Replace or extend the network definition below.
-    # ------------------------------------------------------------------
     def _build_network(self, input_dim: int) -> None:
         """Instantiate the network layers.
 
@@ -43,12 +40,16 @@ class HallucinationProbe(nn.Module):
             input_dim: Feature vector dimensionality.
         """
         self._net = nn.Sequential(
-            nn.Linear(input_dim, 256),
+            nn.Linear(input_dim, 512),
             nn.ReLU(),
-            nn.Linear(256, 1),
+            nn.BatchNorm1d(512),
+            nn.Dropout(0.5),
+            nn.Linear(512, 128),
+            nn.ReLU(),
+            nn.BatchNorm1d(128),
+            nn.Dropout(0.5),
+            nn.Linear(128, 1),
         )
-
-    # ------------------------------------------------------------------
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass — returns raw logits of shape ``(n_samples,)``.
@@ -92,20 +93,16 @@ class HallucinationProbe(nn.Module):
         pos_weight = torch.tensor([n_neg / max(n_pos, 1)], dtype=torch.float32)
         criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
-        # ------------------------------------------------------------------
-        # STUDENT: Replace or extend the training loop below.
-        # ------------------------------------------------------------------
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
 
         self.train()
-        for _ in range(200):
+        for _ in range(300):
             optimizer.zero_grad()
             logits = self(X_t)
             loss = criterion(logits, y_t)
             loss.backward()
             optimizer.step()
-        # ------------------------------------------------------------------
-
+        
         self.eval()
         return self
 
@@ -175,4 +172,3 @@ class HallucinationProbe(nn.Module):
             logits = self(X_t)
             prob_pos = torch.sigmoid(logits).numpy()
         return np.stack([1.0 - prob_pos, prob_pos], axis=1)
-
