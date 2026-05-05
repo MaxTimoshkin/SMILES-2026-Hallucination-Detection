@@ -1,9 +1,9 @@
 ﻿**1. Reproducibility instruction.** 
 
-Open the terminal in Colab and run:
+Open the terminal and run:
 ```
 git clone https://github.com/MaxTimoshkin/SMILES-2026-Hallucination-Detection.git
-cd SMILES-HALLUCINATION-DETECTION
+cd SMILES-2026-Hallucination-Detection
 pip install -r requirements.txt
 python solution.py
 ```
